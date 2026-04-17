@@ -235,7 +235,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold tracking-tight" style={{ color: 'var(--text-main)' }}>
-                    {showResume ? ((resumeDoc?.filename?.toLowerCase().includes('soham') ? 'Lance_Resume.pdf' : resumeDoc?.filename) || 'Lance_Resume.pdf') : 'View Your Resume'}
+                    {showResume ? ((resumeDoc?.filename?.toLowerCase().includes('lance') ? resumeDoc.filename : 'Lance_Resume.pdf') || 'Lance_Resume.pdf') : 'View Your Resume'}
                   </h3>
                   <p className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>
                     {showResume ? 'Direct Dashboard View' : 'Click animation to preview'}
@@ -255,7 +255,7 @@ export default function DashboardPage() {
             <div className="flex-1 bg-white relative flex flex-col items-center justify-center cursor-pointer">
               {showResume ? (
                 <iframe 
-                  src={(resumeDoc?.resumeUrl && !resumeDoc.resumeUrl.toLowerCase().includes('soham') ? resumeDoc.resumeUrl : '/Lance_Resume.pdf') + '#toolbar=0&navpanes=0&scrollbar=0'}
+                  src={(resumeDoc?.resumeUrl && !resumeDoc.resumeUrl.toLowerCase().includes('lance') ? resumeDoc.resumeUrl : '/Lance_Resume.pdf') + '#toolbar=0&navpanes=0&scrollbar=0'}
                   className="w-full h-full border-0"
                   title="Resume Preview"
                 />

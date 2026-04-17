@@ -237,12 +237,11 @@ export async function POST(req: NextRequest) {
       if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 });
       
       if (file.name.endsWith('.pdf')) {
-        let parser: any = null;
         try {
           const arrayBuffer = await file.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
-          parser = new PDFParse({ data: buffer });
-          const data = await parser.getText();
+          const pdf = require('pdf-parse');
+          const data = await pdf(buffer);
           text = data.text ?? '';
         } catch (pdfErr) {
           console.error('[analyze-local] PDF parse error:', pdfErr instanceof Error ? pdfErr.message : pdfErr);
@@ -250,10 +249,6 @@ export async function POST(req: NextRequest) {
             { error: 'Could not extract text from this PDF. Please use "Paste text" instead.' },
             { status: 422 }
           );
-        } finally {
-          if (parser) {
-            try { await parser.destroy(); } catch (e) {}
-          }
         }
       } else {
         text = await file.text();

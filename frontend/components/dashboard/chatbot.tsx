@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+console.log('Chatbot using BACKEND_URL:', BACKEND_URL);
 
 type Msg = { role: 'user' | 'bot'; content: string };
 
