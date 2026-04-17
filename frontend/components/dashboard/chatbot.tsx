@@ -5,8 +5,18 @@ import { Send, X, Maximize2, Minimize2, Loader2, Bot } from 'lucide-react';
 import Image from 'next/image';
 import { toast } from 'sonner';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-console.log('Chatbot using BACKEND_URL:', BACKEND_URL);
+const getBackendUrl = () => {
+  const url = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+  // Standardize to NOT have trailing slash
+  return url.endsWith('/') ? url.slice(0, -1) : url;
+};
+
+const BACKEND_URL = getBackendUrl();
+console.log('TJSR Chatbot: Target Backend ->', BACKEND_URL);
+if (!process.env.NEXT_PUBLIC_BACKEND_URL) {
+  console.warn('TJSR Chatbot: NEXT_PUBLIC_BACKEND_URL not found, falling back to localhost.');
+}
+
 
 type Msg = { role: 'user' | 'bot'; content: string };
 
