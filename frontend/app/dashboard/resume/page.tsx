@@ -76,6 +76,69 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
+// ─── ATS analysis (runs entirely in browser, no server call) ─────────────────
+const ATS_KEYWORDS = [
+  "javascript","python","java","c","c++","c#","typescript","go","rust","kotlin","swift",
+  "html","css","react","next.js","angular","vue","node","express","rest api","graphql",
+  "machine learning","deep learning","nlp","computer vision","tensorflow","pytorch","scikit-learn",
+  "data analysis","pandas","numpy","matplotlib","power bi","tableau","excel",
+  "mongodb","mysql","postgresql","firebase","sql","redis","dynamodb",
+  "aws","azure","gcp","docker","kubernetes","ci/cd","jenkins","github actions",
+  "cybersecurity","penetration testing","ethical hacking","network security","encryption",
+  "android","ios","flutter","react native",
+  "git","github","gitlab","bitbucket","jira","postman",
+  "problem solving","algorithms","data structures","oop","system design",
+];
+const SECTION_DEFS = [
+  { name: 'Contact Info',      keywords: ['phone','email','linkedin','github','portfolio','@','.com'] },
+  { name: 'Summary / Profile', keywords: ['summary','objective','profile','about','overview'] },
+  { name: 'Education',         keywords: ['education','degree','university','college','bachelor','master','b.e','b.tech','b.sc','cgpa','gpa'] },
+  { name: 'Work Experience',   keywords: ['experience','employment','intern','engineer','developer','analyst','manager','work history'] },
+  { name: 'Skills',            keywords: ['skills','technologies','technical','proficiency','tools','languages'] },
+  { name: 'Projects',          keywords: ['project','portfolio','built','developed','created','implemented'] },
+  { name: 'Certifications',    keywords: ['certification','certificate','certified','credential','course'] },
+  { name: 'Achievements',      keywords: ['achievement','award','recognition','honor','ranked','winner','prize'] },
+];
+function runAnalysis(text: string): AnalysisResult {
+  const lower = text.toLowerCase();
+  let matchedKeywords = 0;
+  ATS_KEYWORDS.forEach(w => { if (lower.includes(w)) matchedKeywords++; });
+  const keywordScore  = (matchedKeywords / ATS_KEYWORDS.length) * 70;
+  const lengthScore   = lower.length > 1200 ? 20 : (lower.length / 1200) * 20;
+  let sectionScore = 0;
+  if (lower.includes('experience')) sectionScore += 5;
+  if (lower.includes('projects'))   sectionScore += 5;
+  if (lower.includes('education'))  sectionScore += 5;
+  if (lower.includes('skills'))     sectionScore += 5;
+  const score = Math.min(100, Math.round(keywordScore + lengthScore + sectionScore + (matchedKeywords > 15 ? 10 : 0)));
+  const sectionScores = SECTION_DEFS.map(s => {
+    if (s.name === 'Contact Info') {
+      const hasEmail = /@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(text);
+      const hasPhone = /\d{3,}[\s-]?\d{3,}[\s-]?\d{3,}/.test(text);
+      return { name: s.name, present: hasEmail || hasPhone || s.keywords.some(k => lower.includes(k)) };
+    }
+    return { name: s.name, present: s.keywords.some(k => lower.includes(k)) };
+  });
+  const strengths: string[]    = [];
+  const improvements: string[] = [];
+  if (matchedKeywords > 10) strengths.push(`Strong skills profile — matched ${matchedKeywords} keywords.`);
+  if (sectionScore >= 15)   strengths.push('Good coverage across major resume sections.');
+  if (matchedKeywords <= 10) improvements.push('Consider adding more industry-standard technical keywords.');
+  if (sectionScore < 20)     improvements.push('Ensure Experience, Projects, Education, and Skills sections are clearly labeled.');
+  return { score, matchedKeywords, totalKeywords: ATS_KEYWORDS.length, strengths, improvements, sectionScores };
+}
+
+async function extractTextFromFile(file: File): Promise<string> {
+  if (file.name.toLowerCase().endsWith('.pdf')) {
+    const arrayBuffer = await file.arrayBuffer();
+    const { getDocumentProxy, extractText } = await import('unpdf');
+    const pdf = await getDocumentProxy(new Uint8Array(arrayBuffer));
+    const { text } = await extractText(pdf, { mergePages: true });
+    return text ?? '';
+  }
+  return file.text();
+}
+
 // ─── Analyzer Tab ─────────────────────────────────────────────────────────────
 function AnalyzerTab() {
   const [dragging,  setDragging]  = useState(false);
@@ -88,11 +151,9 @@ function AnalyzerTab() {
   async function analyze(file: File) {
     setLoading(true); setError(''); setResult(null); setFileName(file.name);
     try {
-      const fd = new FormData(); fd.append('file', file);
-      const res = await fetch('/api/resume/analyze', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Analysis failed');
-      setResult(data);
+      const text = await extractTextFromFile(file);
+      if (text.trim().length < 20) throw new Error('Resume text too short — make sure the PDF contains selectable text.');
+      setResult(runAnalysis(text));
     } catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
   }
