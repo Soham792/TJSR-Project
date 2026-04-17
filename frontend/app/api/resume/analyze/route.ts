@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDocument, extractText } from 'unpdf';
+import { getDocumentProxy, extractText } from 'unpdf';
 
 export const runtime = 'nodejs';
 
@@ -120,10 +120,9 @@ export async function POST(req: NextRequest) {
           const buffer = Buffer.from(arrayBuffer);
           
           // Use unpdf for serverless compatibility
-          const pdf = await getDocument({ data: buffer }).promise;
-          const { text: extractedText } = await extractText(pdf);
+          const pdf = await getDocumentProxy(buffer);
+          const { text: extractedText } = await extractText(pdf, { mergePages: true });
           text = extractedText ?? '';
-          pdf.destroy();
           
           console.log(`[analyze] PDF (unpdf) parsing successful. Extracted ${text.length} chars.`);
         } catch (pdfErr: any) {
