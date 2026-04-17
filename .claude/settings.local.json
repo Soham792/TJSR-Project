@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.py$\")",
+      "Bash(python *)",
+      "Bash(node *)",
+      "Bash(venv/Scripts/pip install *)"
+    ]
+  }
+}
