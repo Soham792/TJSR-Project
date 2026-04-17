@@ -1,0 +1,7 @@
+[phases.build]
+cmds = ["npx playwright install --with-deps chromium"]
+
+[variables]
+PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1" # Prevent default install if any
+# This tells playwright where to find the browser if installed via nixpkgs or similar, 
+# but we are using npx install specifically for chromium only.
