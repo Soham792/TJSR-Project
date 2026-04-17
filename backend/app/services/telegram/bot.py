@@ -8,8 +8,8 @@ from telegram.ext import (
 from app.config import get_settings
 from app.services.telegram.commands import (
     start_command, jobs_command, stats_command,
-    search_command, settings_command, help_command,
-    button_callback, text_handler,
+    history_command, search_command, settings_command,
+    help_command, button_callback, text_handler,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ def build_application() -> Application | None:
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("jobs", jobs_command))
     app.add_handler(CommandHandler("stats", stats_command))
+    app.add_handler(CommandHandler("history", history_command))
     app.add_handler(CommandHandler("search", search_command))
     app.add_handler(CommandHandler("settings", settings_command))
     app.add_handler(CommandHandler("help", help_command))

@@ -154,19 +154,19 @@ async def send_chatbot_message(user_id: str, question: str, response: str) -> bo
 
     try:
         from telegram import Bot
+        import html
         bot = Bot(token=settings.telegram_bot_token)
 
         # Truncate response if too long (Telegram limit is 4096)
-        # We leave space for the header and footer
         max_body = 3500
-        if len(response) > max_body:
-            response = response[:max_body] + "..."
+        safe_response = html.escape(response[:max_body] + ("..." if len(response) > max_body else ""))
 
         text = (
-            f"🤖 <b>AI Assistant Response</b>\n\n"
+            f"🤖 <b>TJSR Assistant</b>\n\n"
             f"❓ <b>You asked:</b>\n<i>{html.escape(question)}</i>\n\n"
-            f"✨ <b>Answer:</b>\n{html.escape(response)}\n\n"
-            f'<a href="{settings.frontend_url}/dashboard">Open Chat Dashboard</a>'
+            f"✨ <b>Answer:</b>\n{safe_response}\n\n"
+            f'📜 <i>Type <b>/history</b> in this chat to see previous Dashboard sessions.</i>\n'
+            f'🔗 <a href="{settings.frontend_url}/dashboard">Launch Dashboard</a>'
         )
 
         await bot.send_message(

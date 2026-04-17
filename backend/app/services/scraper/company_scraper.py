@@ -444,6 +444,12 @@ class CompanyScraper:
     # ------------------------------------------------------------------ #
 
     def run(self, company_names: list[str] | None = None) -> dict:
+        from datetime import datetime, timezone
+        started_at = datetime.now(timezone.utc).isoformat()
+
+        # Clear any pending stop flag from a previous run
+        self._set_stop_flag(False)
+
         sources = COMPANY_SOURCES
         if company_names:
             sources = [s for s in COMPANY_SOURCES if s["name"] in company_names]
@@ -457,6 +463,11 @@ class CompanyScraper:
         }
 
         for i, source in enumerate(sources):
+            # Honour a stop request between companies
+            if self._check_stop_flag():
+                logger.info("[CompanyScraper] Stop requested — halting after current batch")
+                break
+
             name = source["name"]
             self._publish_progress({
                 "progress": int(i / len(sources) * 100),
@@ -465,6 +476,7 @@ class CompanyScraper:
                 "sources_total": len(sources),
                 "current_source": name,
                 "is_running": True,
+                "last_run_at": started_at,
             })
 
             try:
@@ -497,6 +509,7 @@ class CompanyScraper:
             "sources_total": result["sources_total"],
             "current_source": None,
             "is_running": False,
+            "last_run_at": started_at,
         })
 
         return result
@@ -784,6 +797,42 @@ class CompanyScraper:
                 process_job_pipeline.delay(str(job.id))
             except Exception as e:
                 logger.warning(f"[CompanyScraper] Could not queue pipeline for {job.id}: {e}")
+
+    def _check_stop_flag(self) -> bool:
+        """Return True if the frontend requested a stop via Redis."""
+        try:
+            import redis
+            settings = get_settings()
+            url = settings.redis_url
+            r = redis.from_url(
+                url, ssl_cert_reqs="none", socket_timeout=2, socket_connect_timeout=2
+            ) if url.startswith("rediss://") else redis.from_url(
+                url, socket_timeout=2, socket_connect_timeout=2
+            )
+            val = r.get("company_scraper:stop_requested")
+            r.close()
+            return val == b"1"
+        except Exception:
+            return False
+
+    def _set_stop_flag(self, value: bool) -> None:
+        """Set or clear the stop flag in Redis."""
+        try:
+            import redis
+            settings = get_settings()
+            url = settings.redis_url
+            r = redis.from_url(
+                url, ssl_cert_reqs="none", socket_timeout=2, socket_connect_timeout=2
+            ) if url.startswith("rediss://") else redis.from_url(
+                url, socket_timeout=2, socket_connect_timeout=2
+            )
+            if value:
+                r.set("company_scraper:stop_requested", "1", ex=300)
+            else:
+                r.delete("company_scraper:stop_requested")
+            r.close()
+        except Exception as e:
+            logger.warning(f"[CompanyScraper] Could not update stop flag: {e}")
 
     def _publish_progress(self, data: dict) -> None:
         try:

@@ -203,7 +203,45 @@ async def company_scraper_status():
         sources_completed=data.get("sources_completed", 0),
         sources_total=data.get("sources_total", 0),
         current_source=data.get("current_source"),
+        last_run_at=data.get("last_run_at"),
     )
+
+
+@router.post("/stop/companies")
+async def stop_company_scraper(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Signal the background company scraper to stop after its current source.
+    Sets a Redis flag that CompanyScraper.run() checks between companies.
+    """
+    from app.config import get_settings
+    settings = get_settings()
+    try:
+        url = settings.redis_url
+        r = redis_lib.from_url(
+            url,
+            ssl_cert_reqs="none",
+            socket_timeout=3,
+            socket_connect_timeout=3,
+        ) if url.startswith("rediss://") else redis_lib.from_url(
+            url, socket_timeout=3, socket_connect_timeout=3
+        )
+        r.set("company_scraper:stop_requested", "1", ex=300)
+        r.close()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Redis unavailable: {e}")
+
+    log = SystemLog(
+        user_id=user.id,
+        source="Scraper",
+        level="info",
+        message="Company scraper stop requested",
+    )
+    db.add(log)
+    await db.commit()
+    return {"status": "stop_requested"}
 
 
 @router.post("/run")

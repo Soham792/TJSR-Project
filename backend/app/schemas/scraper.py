@@ -47,6 +47,7 @@ class CompanyScraperStatus(BaseModel):
     sources_completed: int = 0
     sources_total: int = 0
     current_source: str | None = None
+    last_run_at: str | None = None   # ISO-8601 string stored in Redis
 
 
 class ScraperStatus(BaseModel):

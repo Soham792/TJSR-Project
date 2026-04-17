@@ -1,0 +1,195 @@
+@import "tailwindcss";
+
+/* ── Design Tokens (light) ──────────────────────────────────────────────── */
+:root {
+  --nav-bg:      rgba(255, 248, 231, 0.97);
+  --nav-border:  rgba(250, 204, 21, 0.25);
+  --page-bg:     #FFF8E7;
+  --card-bg:     #FDECC8;
+  --card-bg2:    #FFF3C4;
+  --input-bg:    #FFF8E7;
+  --text-main:   #1F2937;
+  --text-muted:  #6B7280;
+  --border:      rgba(250, 204, 21, 0.3);
+  --primary:     #FACC15;
+  --primary-hov: #EAB308;
+  --scrollbar:   #D1C4A0;
+}
+
+/* ── Design Tokens (dark) ───────────────────────────────────────────────── */
+html.dark {
+  --nav-bg:      rgba(15, 23, 42, 0.97);
+  --nav-border:  rgba(255, 255, 255, 0.08);
+  --page-bg:     transparent;
+  --card-bg:     #1E293B;
+  --card-bg2:    #0F172A;
+  --input-bg:    #1E293B;
+  --text-main:   #e2e8f0;
+  --text-muted:  #94a3b8;
+  --border:      rgba(255, 255, 255, 0.1);
+  --primary:     #FACC15;
+  --primary-hov: #EAB308;
+  --scrollbar:   #334155;
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+@layer base {
+  body {
+    background-color: #FFF8E7;
+    color: var(--text-main);
+    @apply antialiased;
+    transition: background 0.4s ease, color 0.3s ease;
+  }
+
+  html.dark body {
+    background: linear-gradient(-45deg, #0F172A, #1E293B, #020617, #0F172A);
+    background-size: 400% 400%;
+    animation: darkFlow 14s ease infinite;
+    color: var(--text-main);
+  }
+}
+
+@keyframes darkFlow {
+  0%   { background-position: 0%   50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0%   50%; }
+}
+
+/* ── Component classes ──────────────────────────────────────────────────── */
+@layer components {
+  .page-bg {
+    background-color: var(--page-bg);
+    min-height: 100vh;
+    transition: background-color 0.4s ease;
+  }
+
+  .brand-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border);
+    @apply rounded-xl shadow-sm transition-all duration-200;
+  }
+  .brand-card:hover { @apply shadow-md; }
+
+  .btn-primary {
+    background-color: var(--primary);
+    color: #1F2937;
+    @apply rounded-lg font-semibold transition-all duration-150 hover:shadow-md active:scale-95;
+  }
+  .btn-primary:hover { background-color: var(--primary-hov); }
+
+  .btn-secondary {
+    background-color: var(--card-bg2);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    @apply rounded-lg font-semibold transition-all duration-150 hover:shadow-sm active:scale-95;
+  }
+}
+
+/* ── Animations ─────────────────────────────────────────────────────────── */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up { animation: slide-up 0.4s ease-out forwards; }
+
+@keyframes msg-in-left {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes msg-in-right {
+  from { opacity: 0; transform: translateX(10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.msg-left  { animation: msg-in-left  0.22s ease-out forwards; }
+.msg-right { animation: msg-in-right 0.22s ease-out forwards; }
+
+@keyframes namaste-in {
+  0%   { opacity: 0; letter-spacing: 0.3em; }
+  100% { opacity: 1; letter-spacing: 0.08em; }
+}
+.namaste-anim {
+  animation: namaste-in 1.2s cubic-bezier(0.16,1,0.3,1) 0.8s both;
+}
+
+/* Opening sequence */
+.os-phrase {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(2.5rem, 7vw, 6rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  text-align: center;
+  white-space: nowrap;
+  opacity: 0;
+  animation: phrase-show 7s ease forwards;
+}
+@keyframes phrase-show {
+  0%   { opacity: 0; }
+  8%   { opacity: 1; }
+  75%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.word        { display: inline-block; margin-right: 0.3em; }
+.word:last-child { margin-right: 0; }
+.char        { display: inline-block; overflow: hidden; vertical-align: bottom; line-height: 1.15; }
+.char-inner  { display: inline-block; transform: translateY(110%);
+               animation: char-reveal 0.65s cubic-bezier(0.16,1,0.3,1) forwards; }
+@keyframes char-reveal { to { transform: translateY(0); } }
+
+/* Progress bar */
+@keyframes progress-grow {
+  from { width: 0; }
+  to   { width: var(--target-width, 100%); }
+}
+.progress-bar-animated {
+  width: 0;
+  animation: progress-grow 1.4s cubic-bezier(0.4,0,0.2,1) forwards;
+  animation-delay: 0.4s;
+}
+
+/* ── Dark-mode glow cards ───────────────────────────────────────────────── */
+/*
+ * Applied via className="dark-card" on any card/container.
+ * In light mode this class is a no-op; glow activates only under html.dark.
+ * Kept outside @layer so it wins over Tailwind utility specificity.
+ */
+html.dark .dark-card {
+  box-shadow:
+    0 0 10px rgba(250, 204, 21, 0.18),
+    0 0 22px rgba(250, 204, 21, 0.08);
+  border-color: rgba(250, 204, 21, 0.22) !important;
+  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+}
+
+html.dark .dark-card:hover {
+  box-shadow:
+    0 0 16px rgba(250, 204, 21, 0.30),
+    0 0 34px rgba(250, 204, 21, 0.13);
+  transform: translateY(-3px) scale(1.015);
+}
+
+/* Also enhance the brand-card component class in dark mode */
+html.dark .brand-card {
+  box-shadow:
+    0 0 10px rgba(250, 204, 21, 0.18),
+    0 0 22px rgba(250, 204, 21, 0.08);
+  border-color: rgba(250, 204, 21, 0.22);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+html.dark .brand-card:hover {
+  box-shadow:
+    0 0 16px rgba(250, 204, 21, 0.30),
+    0 0 34px rgba(250, 204, 21, 0.13);
+  transform: translateY(-3px) scale(1.015);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar       { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #FACC15; }

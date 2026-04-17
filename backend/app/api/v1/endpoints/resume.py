@@ -6,6 +6,7 @@ from app.models.database import get_db
 from app.models.user import User
 from app.dependencies import get_current_user
 from app.services.resume.skill_extractor import parse_resume
+from app.services.firebase_auth import upload_file_to_storage
 
 router = APIRouter()
 
@@ -45,9 +46,24 @@ async def upload_resume(
     filename = file.filename or "resume.pdf"
     _text, skills = parse_resume(filename, data)
 
+    # NEW: Upload to Firebase Storage via backend
+    resume_url = upload_file_to_storage(
+        user_id=user.firebase_uid,
+        filename=filename,
+        content=data,
+        content_type=file.content_type or "application/pdf"
+    )
+
+    if not resume_url:
+        raise HTTPException(
+            status_code=500,
+            detail="Cloud Storage failed. Please check backend logs or Firebase permissions."
+        )
+
     if not skills:
         return {
             "skills": [],
+            "resume_url": resume_url,
             "message": "No recognisable tech skills found in the resume. "
                        "Make sure the file contains readable text.",
         }
@@ -73,7 +89,12 @@ async def upload_resume(
             ),
         ) from e
 
-    return {"skills": skills, "count": len(skills), "message": f"Extracted {len(skills)} skills from your resume."}
+    return {
+        "skills": skills, 
+        "resume_url": resume_url,
+        "count": len(skills), 
+        "message": f"Extracted {len(skills)} skills from your resume."
+    }
 
 
 @router.get("/skills")

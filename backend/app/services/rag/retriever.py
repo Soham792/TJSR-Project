@@ -4,6 +4,12 @@ import logging
 from qdrant_client.models import Filter, FieldCondition, MatchValue
 from app.services.rag.embedder import embed_text
 from app.services.rag.indexer import get_qdrant_client, JOB_COLLECTION, RESUME_COLLECTION
+from sqlalchemy import create_engine, select, func, and_
+from sqlalchemy.orm import Session
+from app.models.job import Job
+from app.models.application import Application
+from app.config import get_settings
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -95,36 +101,58 @@ async def search_resume_sections(
 
 
 async def get_context_for_query(query: str, user_id: str | None = None, limit: int = 5) -> str:
-    """Build a context string from the most relevant job documents."""
-    results = await search_similar_jobs(query, limit=limit)
-
-    if not results:
-        return "No relevant job information found."
-
-    from sqlalchemy import create_engine, select
-    from sqlalchemy.orm import Session
-    from app.models.job import Job
-    from app.config import get_settings
-
+    """Build a comprehensive context string from jobs, stats, and the user's resume."""
     settings = get_settings()
     engine = create_engine(settings.sync_database_url)
-
-    context_parts = []
+    
+    # 1. Fetch Platform Stats
+    stats_str = "No platform stats available."
     with Session(engine) as session:
-        for r in results:
-            job = session.execute(
-                select(Job).where(Job.id == r["job_id"])
-            ).scalar_one_or_none()
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        total_jobs = session.execute(select(func.count()).select_from(Job)).scalar() or 0
+        jobs_today = session.execute(
+            select(func.count()).select_from(Job).where(Job.date_scraped >= today_start)
+        ).scalar() or 0
+        matches = session.execute(
+            select(func.count()).select_from(Job).where(
+                and_(Job.is_tech == True, Job.confidence_score >= 0.7)
+            )
+        ).scalar() or 0
+        
+        stats_str = (
+            f"Current Platform Stats:\n"
+            f"- Total Jobs in Database: {total_jobs}\n"
+            f"- New Jobs Found Today: {jobs_today}\n"
+            f"- High-Quality AI Matches: {matches}\n"
+        )
 
-            if job:
-                context_parts.append(
-                    f"Job: {job.title} at {job.company}\n"
-                    f"Location: {job.location or 'N/A'}\n"
-                    f"Skills: {', '.join(job.skills or [])}\n"
-                    f"Type: {job.job_type or 'N/A'}\n"
-                    f"Salary: {job.salary or 'N/A'}\n"
-                    f"Apply: {job.apply_link or 'N/A'}\n"
-                    f"Description: {(job.description or '')[:300]}...\n"
-                )
+    # 2. Fetch User Resume Context (if user_id provided)
+    resume_str = ""
+    if user_id:
+        resume_results = await search_resume_sections(query, user_id, limit=3)
+        if resume_results:
+            resume_content = "\n".join([f"[{r['section']}]: {r['content']}" for r in resume_results])
+            resume_str = f"Context from User's Resume:\n{resume_content}\n"
 
-    return "\n---\n".join(context_parts)
+    # 3. Fetch Relevant Jobs
+    job_results = await search_similar_jobs(query, limit=limit)
+    job_context = "No relevant job postings found for this specific query."
+    if job_results:
+        context_parts = []
+        with Session(engine) as session:
+            for r in job_results:
+                job = session.execute(
+                    select(Job).where(Job.id == r["job_id"])
+                ).scalar_one_or_none()
+
+                if job:
+                    context_parts.append(
+                        f"Job: {job.title} at {job.company}\n"
+                        f"Location: {job.location or 'N/A'}\n"
+                        f"Skills: {', '.join(job.skills or [])}\n"
+                        f"Salary: {job.salary or 'N/A'}\n"
+                        f"Description: {(job.description or '')[:200]}..."
+                    )
+        job_context = "Context from Job Postings:\n" + "\n---\n".join(context_parts)
+
+    return f"{stats_str}\n{resume_str}\n{job_context}"

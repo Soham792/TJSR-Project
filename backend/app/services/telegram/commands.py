@@ -9,6 +9,8 @@ from app.services.telegram.keyboards import (
     main_menu_keyboard, job_card_keyboard, settings_keyboard,
     confirm_keyboard, link_account_keyboard
 )
+import redis as redis_lib
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Commands:\n"
             f"/jobs — Browse latest job matches\n"
             f"/stats — View your job search stats\n"
+            f"/history — View your recent chat history\n"
             f"/search \\<query\\> — Search for specific jobs\n"
             f"/settings — Configure notifications\n"
             f"/help — Show help",
@@ -113,6 +116,51 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN_V2)
+
+
+async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /history command — fetch recent chat history from Redis."""
+    chat_id = update.effective_chat.id
+    user = _get_user_from_db(chat_id)
+
+    if not user:
+        await update.message.reply_text("Please link your account first to view history. Use /start")
+        return
+
+    from app.config import get_settings
+    settings = get_settings()
+    
+    try:
+        r = redis_lib.from_url(settings.redis_url)
+        # We search for the most recent session
+        pattern = f"chat:history:{user.id}:*"
+        keys = r.keys(pattern)
+        
+        if not keys:
+            await update.message.reply_text("No recent chat history found on the dashboard.")
+            return
+
+        # Get the most recent key (sorted)
+        latest_key = sorted(keys)[-1].decode()
+        history = r.lrange(latest_key, -10, -1) # Last 5 exchanges (10 lines)
+        r.close()
+
+        if not history:
+            await update.message.reply_text("Your chat history is empty.")
+            return
+
+        text_lines = ["📜 *Recent Dashboard History*\n"]
+        for h in history:
+            msg = json.loads(h)
+            role = "👤 *You*" if msg["role"] == "user" else "🤖 *Assistant*"
+            content = _escape(msg["content"][:200])
+            if len(msg["content"]) > 200: content += "..."
+            text_lines.append(f"{role}:\n{content}\n")
+
+        await update.message.reply_text("\n".join(text_lines), parse_mode=ParseMode.MARKDOWN_V2)
+    except Exception as e:
+        logger.error(f"Failed to fetch history via Telegram: {e}")
+        await update.message.reply_text("Sorry, I couldn't retrieve your history at this moment.")
 
 
 async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

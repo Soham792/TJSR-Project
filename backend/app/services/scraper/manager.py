@@ -101,6 +101,7 @@ class ScraperManager:
                         message=f"Found {len(jobs)} jobs from {config.source_name or config.source_url}",
                     )
                     session.add(log)
+                    session.commit()
 
                 except Exception as e:
                     error_msg = f"Error scraping {config.source_url}: {str(e)}"
@@ -115,8 +116,7 @@ class ScraperManager:
                         message=error_msg,
                     )
                     session.add(log)
-
-                session.commit()
+                    session.commit()
 
             # Final progress update
             if configs:

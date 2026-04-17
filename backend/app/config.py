@@ -37,8 +37,9 @@ class Settings(BaseSettings):
     embedding_model: str = "all-MiniLM-L6-v2"
 
     # Firebase
-    firebase_service_account_key: str = "../firebase-service-account.json"
-    firebase_project_id: str = ""
+    firebase_service_account_key: str = "firebase-service-account.json"
+    firebase_project_id: str = "tjsr-3b6df"
+    firebase_storage_bucket: str = "tjsr-3b6df.appspot.com"
 
     # Telegram
     telegram_bot_token: str = ""

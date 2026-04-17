@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, or_
 from datetime import datetime, timezone, timedelta
 from app.models.database import get_db
 from app.dependencies import get_current_user
@@ -44,13 +44,20 @@ async def dashboard_stats(
     )
     jobs_yesterday = jobs_yesterday_result.scalar()
 
-    # Matched jobs (is_tech=True with confidence > 0.7)
-    matched_result = await db.execute(
-        select(func.count()).select_from(Job).where(
-            and_(Job.is_tech == True, Job.confidence_score >= 0.7)
+    # Matched jobs (Based on user skills)
+    resume_skills = user.resume_skills or []
+    if resume_skills:
+        # Prepare skills for Postgres ARRAY-style matching
+        skills_array = [f"%{s.lower()}%" for s in resume_skills]
+        matched_result = await db.execute(
+            select(func.count()).select_from(Job).where(
+                or_(*[Job.skills.astext.ilike(s) for s in skills_array])
+            )
         )
-    )
-    matched_jobs = matched_result.scalar()
+        matched_jobs = matched_result.scalar()
+    else:
+        # Fallback to general count if no skills (show all jobs found)
+        matched_jobs = total_jobs
 
     # Applications sent
     apps_result = await db.execute(
@@ -138,3 +145,34 @@ async def recent_activity(
     # Sort by timestamp and limit
     activities.sort(key=lambda x: x.timestamp, reverse=True)
     return activities[:limit]
+
+
+@router.get("/debug-db")
+async def debug_db(db: AsyncSession = Depends(get_db)):
+    """Debug route to check DB connectivity and row counts."""
+    from sqlalchemy import text
+    try:
+        # Check connection
+        await db.execute(text("SELECT 1"))
+        
+        # Check job count
+        job_count_res = await db.execute(select(func.count()).select_from(Job))
+        job_count = job_count_res.scalar()
+        
+        # Check first job
+        first_job_res = await db.execute(select(Job).limit(1))
+        first_job = first_job_res.scalar()
+        
+        return {
+            "status": "connected",
+            "job_count": job_count,
+            "has_first_job": first_job is not None,
+            "first_job_title": first_job.title if first_job else None,
+            "db_time": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "db_time": datetime.now(timezone.utc).isoformat()
+        }

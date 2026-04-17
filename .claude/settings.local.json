@@ -4,7 +4,11 @@
       "Bash(grep -E \"\\\\.py$\")",
       "Bash(python *)",
       "Bash(node *)",
-      "Bash(venv/Scripts/pip install *)"
+      "Bash(venv/Scripts/pip install *)",
+      "Bash(npm run *)",
+      "Bash(npx next *)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)"
     ]
   }
 }
