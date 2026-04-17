@@ -791,12 +791,15 @@ class CompanyScraper:
         return jobs_created
 
     def _queue_pipelines(self, jobs: list[Job]) -> None:
-        from app.workers.tasks import process_job_pipeline
-        for job in jobs:
-            try:
-                process_job_pipeline.delay(str(job.id))
-            except Exception as e:
-                logger.warning(f"[CompanyScraper] Could not queue pipeline for {job.id}: {e}")
+        try:
+            from app.workers.tasks import process_job_pipeline
+            for job in jobs:
+                try:
+                    process_job_pipeline.delay(str(job.id))
+                except Exception as e:
+                    logger.warning(f"[CompanyScraper] Could not queue pipeline for {job.id}: {e}")
+        except Exception as e:
+            logger.warning(f"[CompanyScraper] Pipeline import failed (non-fatal): {e}")
 
     def _check_stop_flag(self) -> bool:
         """Return True if the frontend requested a stop via Redis."""
