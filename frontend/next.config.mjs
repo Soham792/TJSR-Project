@@ -6,7 +6,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  serverExternalPackages: ['pdf-parse', 'jspdf'],
+  serverExternalPackages: ['pdf-parse', 'jspdf', 'unpdf'],
   transpilePackages: ['@splinetool/react-spline', '@splinetool/runtime'],
 }
 

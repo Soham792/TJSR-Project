@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDocumentProxy, extractText } from 'unpdf';
+import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 
 export const runtime = 'nodejs';
 
@@ -118,18 +118,14 @@ export async function POST(req: NextRequest) {
         try {
           const arrayBuffer = await file.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
-          
-          // Use unpdf for serverless compatibility
-          const pdf = await getDocumentProxy(buffer);
-          const { text: extractedText } = await extractText(pdf, { mergePages: true });
-          text = extractedText ?? '';
-          
-          console.log(`[analyze] PDF (unpdf) parsing successful. Extracted ${text.length} chars.`);
+          const data = await pdfParse(buffer);
+          text = data.text ?? '';
+          console.log(`[analyze] PDF parsed successfully. Extracted ${text.length} chars.`);
         } catch (pdfErr: any) {
-          console.error('[analyze] PDF Parsing Error (unpdf):', pdfErr.message);
-          return NextResponse.json({ 
-            error: 'Failed to read PDF. The environment could not initialize the parser.',
-            details: pdfErr.message 
+          console.error('[analyze] PDF Parsing Error:', pdfErr.message);
+          return NextResponse.json({
+            error: 'Failed to read PDF. Make sure the file is not password-protected or corrupted.',
+            details: pdfErr.message
           }, { status: 500 });
         }
       } else {
