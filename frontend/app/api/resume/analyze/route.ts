@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getDocument, extractText } from 'unpdf';
 
 export const runtime = 'nodejs';
 
@@ -95,7 +96,6 @@ function parseResumeEntities(text: string) {
   const phoneMatch = text.match(/(?:\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/);
   if (phoneMatch) result.phone = phoneMatch[0];
   
-  // Basic name extraction (first line with uppercase)
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   if (lines.length > 0) {
     const nameCandidate = lines[0].match(/^[A-Z][a-z]+\s+[A-Z][a-z]+/);
@@ -118,14 +118,18 @@ export async function POST(req: NextRequest) {
         try {
           const arrayBuffer = await file.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
-          const pdf = require('pdf-parse');
-          const data = await pdf(buffer);
-          text = data.text ?? '';
-          console.log(`[analyze] PDF parsing successful. Extracted ${text.length} chars.`);
+          
+          // Use unpdf for serverless compatibility
+          const pdf = await getDocument({ data: buffer }).promise;
+          const { text: extractedText } = await extractText(pdf);
+          text = extractedText ?? '';
+          pdf.destroy();
+          
+          console.log(`[analyze] PDF (unpdf) parsing successful. Extracted ${text.length} chars.`);
         } catch (pdfErr: any) {
-          console.error('[analyze] PDF Parsing Error:', pdfErr.message);
+          console.error('[analyze] PDF Parsing Error (unpdf):', pdfErr.message);
           return NextResponse.json({ 
-            error: 'Failed to read PDF. Your browser or environment might be blocking the parser.',
+            error: 'Failed to read PDF. The environment could not initialize the parser.',
             details: pdfErr.message 
           }, { status: 500 });
         }
@@ -137,7 +141,7 @@ export async function POST(req: NextRequest) {
     }
 
     text = text.trim();
-    if (text.length < 50) {
+    if (text.length < 20) {
       return NextResponse.json({ error: 'Resume text too short. Could not analyze.' }, { status: 422 });
     }
 

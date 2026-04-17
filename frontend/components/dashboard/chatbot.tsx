@@ -18,6 +18,8 @@ if (!process.env.NEXT_PUBLIC_BACKEND_URL) {
 }
 
 
+import { auth } from '@/lib/firebase';
+
 type Msg = { role: 'user' | 'bot'; content: string };
 
 export function Chatbot() {
@@ -42,6 +44,11 @@ export function Chatbot() {
     setIsLoading(true);
 
     try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) {
+        throw new Error('You must be logged in to use the assistant.');
+      }
+
       toast.success("AI Assistant is analyzing...", {
         icon: <Bot size={16} className="text-yellow-500" />,
         duration: 3000,
@@ -49,7 +56,10 @@ export function Chatbot() {
 
       const res = await fetch(`${BACKEND_URL}/api/v1/chat/stream`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ message: userMsg }),
       });
       if (!res.ok) throw new Error('Failed to connect');
