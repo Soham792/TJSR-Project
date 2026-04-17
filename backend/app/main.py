@@ -88,16 +88,9 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # ── Troubleshooting CORS (Development Only) ──
-    # Build an explicit allow-list so credentials work correctly.
-    # Starlette reflects the actual Origin when credentials=True + wildcard,
-    # but listing origins explicitly is more predictable across proxy layers.
-    _origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
-    if settings.frontend_url and settings.frontend_url not in _origins:
-        _origins.append(settings.frontend_url)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=_origins,
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
