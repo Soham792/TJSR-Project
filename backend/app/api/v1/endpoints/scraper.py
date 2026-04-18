@@ -403,6 +403,66 @@ async def scraper_websocket(websocket: WebSocket):
             pass
 
 
+@router.get("/debug/greenhouse")
+async def debug_greenhouse():
+    """
+    Diagnostic endpoint — no auth required.
+    Fetches raw jobs from Stripe's Greenhouse board, attempts one DB write,
+    and returns a full report so Railway logs can be skipped.
+    """
+    import traceback
+    from app.services.scraper.greenhouse_scraper import fetch_greenhouse_jobs
+    from app.config import get_settings
+
+    settings = get_settings()
+    report: dict = {
+        "database_url_prefix": settings.database_url[:60],
+        "sync_url_derived": (
+            settings.database_url
+            .replace("+asyncpg", "")
+            .replace("?ssl=require", "?sslmode=require")
+        )[:60],
+        "greenhouse_fetch": None,
+        "db_write": None,
+        "error": None,
+    }
+
+    # Step 1: fetch from Greenhouse
+    try:
+        jobs = fetch_greenhouse_jobs("stripe", "Stripe")
+        report["greenhouse_fetch"] = {
+            "ok": True,
+            "jobs_returned": len(jobs),
+            "sample_title": jobs[0]["title"] if jobs else None,
+        }
+    except Exception as e:
+        report["greenhouse_fetch"] = {"ok": False, "error": str(e)}
+        report["error"] = traceback.format_exc()
+        return report
+
+    # Step 2: attempt a DB write (dry run — we rollback)
+    try:
+        from sqlalchemy import create_engine, text
+        from sqlalchemy.orm import Session
+
+        sync_url = (
+            settings.database_url
+            .replace("+asyncpg", "")
+            .replace("?ssl=require", "?sslmode=require")
+            .replace("&ssl=require", "&sslmode=require")
+        )
+        eng = create_engine(sync_url, connect_args={})
+        with Session(eng) as session:
+            result = session.execute(text("SELECT COUNT(*) FROM jobs"))
+            count = result.scalar()
+            report["db_write"] = {"ok": True, "existing_job_count": count}
+    except Exception as e:
+        report["db_write"] = {"ok": False, "error": str(e)}
+        report["error"] = traceback.format_exc()
+
+    return report
+
+
 @router.post("/run/sync")
 async def run_scraper_sync(
     data: ScraperRunRequest = ScraperRunRequest(),

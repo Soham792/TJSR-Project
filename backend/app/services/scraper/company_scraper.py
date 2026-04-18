@@ -437,7 +437,15 @@ class CompanyScraper:
 
     def __init__(self):
         settings = get_settings()
-        self.sync_engine = create_engine(settings.sync_database_url)
+        # Derive a psycopg2-compatible sync URL from whichever database_url is active.
+        # This ensures Railway's DATABASE_URL env var is respected, not just the default.
+        sync_url = (
+            settings.database_url
+            .replace("+asyncpg", "")
+            .replace("?ssl=require", "?sslmode=require")
+            .replace("&ssl=require", "&sslmode=require")
+        )
+        self.sync_engine = create_engine(sync_url)
 
     # ------------------------------------------------------------------ #
     # Public API

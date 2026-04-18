@@ -1,5 +1,4 @@
 from pydantic_settings import BaseSettings
-from pydantic import model_validator
 from functools import lru_cache
 
 
@@ -10,18 +9,8 @@ class Settings(BaseSettings):
 
     # PostgreSQL / Supabase
     database_url: str = "postgresql+asyncpg://postgres:iniqcuiqciunci@db.ppvpsmhjvljjulsgfagd.supabase.co:5432/postgres?ssl=require"
-    sync_database_url: str = ""
-
-    @model_validator(mode="after")
-    def _derive_sync_url(self) -> "Settings":
-        if not self.sync_database_url:
-            # Strip +asyncpg driver prefix so psycopg2 can use the same host/db.
-            # Also normalise ?ssl=require → ?sslmode=require (psycopg2 syntax).
-            url = self.database_url.replace("+asyncpg", "")
-            url = url.replace("?ssl=require", "?sslmode=require")
-            url = url.replace("&ssl=require", "&sslmode=require")
-            self.sync_database_url = url
-        return self
+    # psycopg2 needs sslmode=require (not ssl=require); also no +asyncpg prefix
+    sync_database_url: str = "postgresql://postgres:iniqcuiqciunci@db.ppvpsmhjvljjulsgfagd.supabase.co:5432/postgres?sslmode=require"
 
     # Neo4j
     neo4j_uri: str = "bolt://localhost:7687"
